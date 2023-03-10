@@ -47,6 +47,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint32_t InputCaptureBuffer[IC_BUFFER_SIZE];
 float averageRisingedgePeriod;
+float MotorReadPWM;
+float microsectominute;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,6 +113,8 @@ int main(void)
 	  if(HAL_GetTick() >= timestamp){
 		  timestamp = HAL_GetTick() + 500;
 		  averageRisingedgePeriod = IC_Calc_Period();
+		  microsectominute = averageRisingedgePeriod*1.66666667*pow(10,-8);
+		  MotorReadPWM = 1/(64*12*microsectominute); // 1/12 round per time in minute
 	  }
   }
   /* USER CODE END 3 */
@@ -211,10 +215,6 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
   }

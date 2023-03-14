@@ -49,11 +49,18 @@ UART_HandleTypeDef huart2;
 uint32_t InputCaptureBuffer[IC_BUFFER_SIZE];
 float averageRisingedgePeriod;
 float BeforeGearRatio;
-float MotorReadPWM;
+float MotorReadRPM;
 float microsectominute;
 
 uint32_t MotorSetDuty = 50;
 uint32_t CompareValue = 0;
+
+float MotorControlEnable = 0;
+float MotorSetRPM = 0;
+float error = 0;
+float Kp = 1.5;
+float ConvertToDuty = 0;
+float DesiredRPM = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,13 +136,25 @@ int main(void)
 		  // (2) MotorReadPWM 0.00000001 = 10^(-8)
 		  microsectominute = averageRisingedgePeriod*1.66666667*0.00000001;
 		  BeforeGearRatio = 1/(12*microsectominute); // 1/12 round per time in minute
-		  MotorReadPWM = BeforeGearRatio/64; // gear ratio 1:64
+		  MotorReadRPM = BeforeGearRatio/64; // gear ratio 1:64
 
-		  // (1) PWM Duty Cycle
-		  // Compare Value = Duty cycle of PWM * Time Period
-		  CompareValue = MotorSetDuty*10; // counter period 1000 but input 0 - 100
-		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,CompareValue); // change reference output compare
-
+		  if(MotorControlEnable == 1){
+			  // PID
+			  error = MotorSetRPM - MotorReadRPM;
+			  DesiredRPM = MotorReadRPM + Kp*error;
+//			  DesiredRPM = Kp*error;
+			  // change RPM to Duty Cycle
+			  // 23 RPM = Duty Cycle 100 (According to my test)
+			  ConvertToDuty = (DesiredRPM*100)/23;
+			  CompareValue = ConvertToDuty*10; // counter period 1000 but input 0 - 100
+			  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,CompareValue); // change reference output compare
+		  }
+		  else if(MotorControlEnable == 0){
+			  // (1) PWM Duty Cycle
+			  // Compare Value = Duty cycle of PWM * Time Period
+			  CompareValue = MotorSetDuty*10; // counter period 1000 but input 0 - 100
+			  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,CompareValue); // change reference output compare
+		  }
 	  }
   }
   /* USER CODE END 3 */

@@ -54,16 +54,15 @@ float microsectominute;
 
 float MotorSetDuty = 50;
 float CompareValue = 0;
+float PreviousCompareValue = 0;
 
 uint8_t MotorControlEnable = 0;
 float MotorSetRPM = 0;
-float error = 0;
-float Kp = 4000; //205 800
-float ConvertToDuty = 0;
-float DesiredRPM = 0;
+float Currenterror = 0;
+float Previouserror = 0;
 
-float integrateerror = 0;
-float Ki = 0.05; //60 17
+float Kp = 25; //4000 205 800
+float Ki = 0.075; //0.05 60 17
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -142,14 +141,20 @@ int main(void)
 		  MotorReadRPM = BeforeGearRatio/64; // gear ratio 1:64
 
 		  if(MotorControlEnable == 1){
-			  // PID
-			  error = MotorSetRPM - MotorReadRPM;
-			  integrateerror += error;
-			  CompareValue = Kp*error + Ki*integrateerror;
+			  // Velocity Form Algorithm PID
+			  Currenterror = MotorSetRPM - MotorReadRPM;
+			  Sumerror += Currenterror;
+			  CompareValue = PreviousCompareValue + (Kp*(Previouserror - Currenterror)) + (Ki*Currenterror);
 			  if(CompareValue > 1000.0){
 				  CompareValue = 1000.0;
 			  }
+			  else if(CompareValue < 0.0){
+				  CompareValue = 0.0;
+			  }
 			  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,(uint16_t)CompareValue); // change reference output compare
+			  Previouserror = Currenterror;
+			  PreviousCompareValue = CompareValue;
+
 		  }
 		  else if(MotorControlEnable == 0){
 			  // (1) PWM Duty Cycle

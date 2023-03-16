@@ -52,15 +52,18 @@ float BeforeGearRatio;
 float MotorReadRPM;
 float microsectominute;
 
-uint32_t MotorSetDuty = 50;
-uint32_t CompareValue = 0;
+float MotorSetDuty = 50;
+float CompareValue = 0;
 
-float MotorControlEnable = 0;
+uint8_t MotorControlEnable = 0;
 float MotorSetRPM = 0;
 float error = 0;
-float Kp = 1.5;
+float Kp = 4000; //205 800
 float ConvertToDuty = 0;
 float DesiredRPM = 0;
+
+float integrateerror = 0;
+float Ki = 0.05; //60 17
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -130,7 +133,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  static uint32_t timestamp = 0;
 	  if(HAL_GetTick() >= timestamp){
-		  timestamp = HAL_GetTick() + 500; // 2 Hz
+		  timestamp = HAL_GetTick() + 5; // 200 Hz
 		  averageRisingedgePeriod = IC_Calc_Period();
 
 		  // (2) MotorReadPWM 0.00000001 = 10^(-8)
@@ -141,13 +144,12 @@ int main(void)
 		  if(MotorControlEnable == 1){
 			  // PID
 			  error = MotorSetRPM - MotorReadRPM;
-			  DesiredRPM = MotorReadRPM + Kp*error;
-//			  DesiredRPM = Kp*error;
-			  // change RPM to Duty Cycle
-			  // 23 RPM = Duty Cycle 100 (According to my test)
-			  ConvertToDuty = (DesiredRPM*100)/23;
-			  CompareValue = ConvertToDuty*10; // counter period 1000 but input 0 - 100
-			  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,CompareValue); // change reference output compare
+			  integrateerror += error;
+			  CompareValue = Kp*error + Ki*integrateerror;
+			  if(CompareValue > 1000.0){
+				  CompareValue = 1000.0;
+			  }
+			  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,(uint16_t)CompareValue); // change reference output compare
 		  }
 		  else if(MotorControlEnable == 0){
 			  // (1) PWM Duty Cycle
@@ -328,7 +330,7 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
+  sConfigIC.ICFilter = 10;
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();

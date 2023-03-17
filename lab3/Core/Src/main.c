@@ -63,6 +63,9 @@ float Previouserror = 0;
 
 float Kp = 25; //4000 205 800
 float Ki = 0.075; //0.05 60 17
+
+float A;
+float B;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -74,6 +77,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 float IC_Calc_Period();
+uint8_t CheckMotorControlEnable();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -135,33 +139,13 @@ int main(void)
 		  timestamp = HAL_GetTick() + 5; // 200 Hz
 		  averageRisingedgePeriod = IC_Calc_Period();
 
-		  // (2) MotorReadPWM 0.00000001 = 10^(-8)
-		  microsectominute = averageRisingedgePeriod*1.66666667*0.00000001;
+		  // (2) MotorReadPWM 1 microsec * (1 s / 10^6 microsec) * (1 min / 60 s) = 1 / (60 * 10^6)
+		  microsectominute = averageRisingedgePeriod/60000000;
 		  BeforeGearRatio = 1/(12*microsectominute); // 1/12 round per time in minute
 		  MotorReadRPM = BeforeGearRatio/64; // gear ratio 1:64
 
-		  if(MotorControlEnable == 1){
-			  // Velocity Form Algorithm PID
-			  Currenterror = MotorSetRPM - MotorReadRPM;
-			  Sumerror += Currenterror;
-			  CompareValue = PreviousCompareValue + (Kp*(Previouserror - Currenterror)) + (Ki*Currenterror);
-			  if(CompareValue > 1000.0){
-				  CompareValue = 1000.0;
-			  }
-			  else if(CompareValue < 0.0){
-				  CompareValue = 0.0;
-			  }
-			  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,(uint16_t)CompareValue); // change reference output compare
-			  Previouserror = Currenterror;
-			  PreviousCompareValue = CompareValue;
-
-		  }
-		  else if(MotorControlEnable == 0){
-			  // (1) PWM Duty Cycle
-			  // Compare Value = Duty cycle of PWM * Time Period
-			  CompareValue = MotorSetDuty*10; // counter period 1000 but input 0 - 100
-			  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,CompareValue); // change reference output compare
-		  }
+		  // (3)
+		  CheckMotorControlEnable();
 	  }
   }
   /* USER CODE END 3 */
@@ -445,6 +429,35 @@ float IC_Calc_Period(){
 	}
 	return sumdiff/5.0;
 }
+
+uint8_t CheckMotorControlEnable(){
+	switch(MotorControlEnable)
+	{
+	case(1):
+		  // Velocity Form Algorithm PID
+		  Currenterror = MotorSetRPM - MotorReadRPM;
+		  A = (Kp*(Previouserror - Currenterror));
+		  B = (Ki*Currenterror);
+		  CompareValue = PreviousCompareValue + (Kp*(Previouserror - Currenterror)) + (Ki*Currenterror);
+		  if(CompareValue > 1000.0){
+			  CompareValue = 1000.0;
+		  }
+		  else if(CompareValue < 0.0){
+			  CompareValue = 0.0;
+		  }
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,(uint16_t)CompareValue); // change reference output compare
+		  Previouserror = Currenterror;
+		  PreviousCompareValue = CompareValue;
+		  break;
+
+	case(0):
+		  // (1) PWM Duty Cycle
+		  // Compare Value = Duty cycle of PWM * Time Period
+		  CompareValue = MotorSetDuty*10; // counter period 1000 but input 0 - 100
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,CompareValue); // change reference output compare
+	}
+}
+
 /* USER CODE END 4 */
 
 /**

@@ -457,6 +457,7 @@ uint8_t CheckMotorControlEnable(){
 		  // Compare Value = Duty cycle of PWM * Time Period
 		  CompareValue = MotorSetDuty*10; // counter period 1000 but input 0 - 100
 		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1,CompareValue); // change reference output compare
+		  break;
 	}
 }
 

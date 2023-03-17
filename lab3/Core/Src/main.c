@@ -144,6 +144,8 @@ int main(void)
 		  BeforeGearRatio = 1/(12*microsectominute); // 1/12 round per time in minute
 		  MotorReadRPM = BeforeGearRatio/64; // gear ratio 1:64
 
+		  if(averageRisingedgePeriod == 0) MotorReadRPM = 0;
+
 		  // (3)
 		  CheckMotorControlEnable();
 	  }
